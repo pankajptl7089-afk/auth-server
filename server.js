@@ -14,7 +14,7 @@ mongoose.connect(MONGO_URI)
     .then(() => console.log("🔥 Cloud Database Connected!"))
     .catch(err => console.error("❌ DB Connection Error:", err));
 
-// Database Schema for Keys
+// Database Schema
 const Key = mongoose.model('Key', new mongoose.Schema({
     keyCode: { type: String, unique: true },
     isUsed: { type: Boolean, default: false },
@@ -22,7 +22,7 @@ const Key = mongoose.model('Key', new mongoose.Schema({
     deviceId: String
 }));
 
-// API: Token Banane ke liye (Admin)
+// Admin API: Token Generate karne ke liye
 app.get('/generate', async (req, res) => {
     const { key } = req.query;
     if(!key) return res.send("Please provide ?key=XYZ");
@@ -32,7 +32,7 @@ app.get('/generate', async (req, res) => {
     } catch (e) { res.send("Token already exists!"); }
 });
 
-// PAGE: Activation Form (Driver side)
+// Driver Page: Activation Form
 app.get('/app-login', (req, res) => {
     const deviceId = req.query.deviceId || "Unknown";
     res.send(`
@@ -54,25 +54,42 @@ app.get('/app-login', (req, res) => {
     `);
 });
 
-// LOGIC: Token Verify aur Device Bind karna
+// Final Activation Logic with Auto-Back UI
 app.post('/activate', async (req, res) => {
     const { username, key, deviceId } = req.body;
     try {
-        // Check if token is valid and not used
         const keyData = await Key.findOne({ keyCode: key, isUsed: false });
         
-        if (keyData) {
-            keyData.isUsed = true;
-            keyData.assignedTo = username;
-            keyData.deviceId = deviceId;
-            await keyData.save();
-            res.redirect('http://login.success');
-        } else {
-            // Check if device is already registered with this token
-            const alreadyActive = await Key.findOne({ keyCode: key, deviceId: deviceId });
-            if(alreadyActive) {
-                return res.redirect('http://login.success');
+        if (keyData || (await Key.findOne({ keyCode: key, deviceId: deviceId }))) {
+            if(keyData) {
+                keyData.isUsed = true;
+                keyData.assignedTo = username;
+                keyData.deviceId = deviceId;
+                await keyData.save();
             }
+
+            // Success Page jo Browser se App par wapas bhejega
+            res.send(`
+                <html>
+                <body style="text-align:center;padding:50px;font-family:sans-serif;background:#e8f5e9;">
+                    <div style="margin-top:100px;">
+                        <h1 style="color:#2e7d32;font-size:50px;">✅</h1>
+                        <h2 style="color:#1b5e20;">Activation Successful!</h2>
+                        <p style="font-size:18px;color:#333;">Aapka account ab activate ho gaya hai.</p>
+                        <p style="color:#666;">Ab is browser ko band karke <b>wapas App kholiye</b>.</p>
+                        <br>
+                        <button onclick="window.close()" style="padding:15px 30px;background:#1b5e20;color:white;border:none;border-radius:50px;font-weight:bold;">DONE / BACK</button>
+                    </div>
+                    <script>
+                        // 3 second baad apne aap app kholne ki koshish karega
+                        setTimeout(function(){ 
+                            window.location.href = "intent://#Intent;scheme=dms_login;package=com.jubl.dms;end"; 
+                        }, 3000);
+                    </script>
+                </body>
+                </html>
+            `);
+        } else {
             res.send("<h3 style='color:red;'>Invalid or Already Used Token!</h3><a href='javascript:history.back()'>Try Again</a>");
         }
     } catch (err) {
