@@ -1,28 +1,7 @@
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Sahi Connection String (Pankaj@123 password ke saath)
-const MONGO_URI = "mongodb://pankajptl7089_db_user:Pankaj%40123@cluster0-shard-00-00.8qgtvpi.mongodb.net:27017,cluster0-shard-00-01.8qgtvpi.mongodb.net:27017,cluster0-shard-00-02.8qgtvpi.mongodb.net:27017/DMS_Database?ssl=true&replicaSet=atlas-8qgtvpi-shard-0&authSource=admin&retryWrites=true&w=majority";
-
-mongoose.connect(MONGO_URI)
-    .then(() => console.log("🔥 Cloud Database Connected!"))
-    .catch(err => console.error("❌ DB Connection Error:", err));
+express();B Connection Error:", err));
 
 const Key = mongoose.model('Key', new mongoose.Schema({
-    keyCode: { type: String, unique: true },
-    isUsed: { type: Boolean, default: false },
-    assignedTo: String,
-    deviceId: String
-}));
-
-app.get('/generate', async (req, res) => {
-    const { key } = req.query;
+    keyCode: { type: String, unique: true },key } = req.query;
     if(!key) return res.send("Please provide ?key=XYZ");
     try {
         await new Key({ keyCode: key }).save();
@@ -62,3 +41,4 @@ app.post('/activate', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log("🚀 Server Live on Port " + PORT));
+
