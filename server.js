@@ -11,7 +11,7 @@ app.use(express.urlencoded({ extended: true }));
 // Jab driver app me Verify dabayega, app yahan contact karegi
 app.get('/verify-token', (req, res) => {
     const userToken = req.query.token;
-    const secureToken = "PANKAJ2026"; // <--- Isse aap kabhi bhi badal sakte hain
+    const secureToken = "DMS_NEW_2026"; // <--- Isse aap kabhi bhi badal sakte hain
 
     console.log(`Verification attempt with token: ${userToken}`);
 
@@ -60,4 +60,5 @@ app.get('/app-login', (req, res) => {
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
+
 
