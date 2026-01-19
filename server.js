@@ -54,3 +54,4 @@ app.get('/verify-token', async (req, res) => {
 });
 
 app.listen(port, () => console.log(`Server is live on port ${port}`));
+
