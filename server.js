@@ -7,7 +7,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Final Simple SRV Connection String
+// MongoDB Connection (Standard SRV Link)
 const MONGO_URI = "mongodb+srv://pankajptl7089_db_user:Pankaj%40123@cluster0.8qgtvpi.mongodb.net/DMS_Database?retryWrites=true&w=majority";
 
 mongoose.connect(MONGO_URI)
@@ -22,7 +22,7 @@ const Key = mongoose.model('Key', new mongoose.Schema({
     deviceId: String
 }));
 
-// Admin API: Token Generate karne ke liye
+// 1. ADMIN API: Naya Token banane ke liye
 app.get('/generate', async (req, res) => {
     const { key } = req.query;
     if(!key) return res.send("Please provide ?key=XYZ");
@@ -32,7 +32,24 @@ app.get('/generate', async (req, res) => {
     } catch (e) { res.send("Token already exists!"); }
 });
 
-// Driver Page: Activation Form
+// 2. CHECK STATUS API: App isi se check karega ki password hatana hai ya nahi
+app.get('/check-status', async (req, res) => {
+    const { deviceId } = req.query;
+    if(!deviceId) return res.json({ status: "fail" });
+    
+    try {
+        const keyData = await Key.findOne({ deviceId: deviceId, isUsed: true });
+        if (keyData) {
+            res.json({ status: "success" });
+        } else {
+            res.json({ status: "fail" });
+        }
+    } catch (err) {
+        res.json({ status: "error" });
+    }
+});
+
+// 3. DRIVER PAGE: Login Form khulne ke liye
 app.get('/app-login', (req, res) => {
     const deviceId = req.query.deviceId || "Unknown";
     res.send(`
@@ -54,13 +71,16 @@ app.get('/app-login', (req, res) => {
     `);
 });
 
-// Final Activation Logic with Auto-Back UI
+// 4. ACTIVATION LOGIC: Token verify aur success page
 app.post('/activate', async (req, res) => {
     const { username, key, deviceId } = req.body;
     try {
-        const keyData = await Key.findOne({ keyCode: key, isUsed: false });
+        let keyData = await Key.findOne({ keyCode: key, isUsed: false });
         
-        if (keyData || (await Key.findOne({ keyCode: key, deviceId: deviceId }))) {
+        // Agar pehle se wahi device registered hai tab bhi success dikhao
+        const alreadyActive = await Key.findOne({ keyCode: key, deviceId: deviceId });
+
+        if (keyData || alreadyActive) {
             if(keyData) {
                 keyData.isUsed = true;
                 keyData.assignedTo = username;
@@ -68,7 +88,6 @@ app.post('/activate', async (req, res) => {
                 await keyData.save();
             }
 
-            // Success Page jo Browser se App par wapas bhejega
             res.send(`
                 <html>
                 <body style="text-align:center;padding:50px;font-family:sans-serif;background:#e8f5e9;">
@@ -81,7 +100,6 @@ app.post('/activate', async (req, res) => {
                         <button onclick="window.close()" style="padding:15px 30px;background:#1b5e20;color:white;border:none;border-radius:50px;font-weight:bold;">DONE / BACK</button>
                     </div>
                     <script>
-                        // 3 second baad apne aap app kholne ki koshish karega
                         setTimeout(function(){ 
                             window.location.href = "intent://#Intent;scheme=dms_login;package=com.jubl.dms;end"; 
                         }, 3000);
