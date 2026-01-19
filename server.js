@@ -4,7 +4,8 @@ const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 10000;
 
-// 1. AAPKA SAHI MONGODB LINK (Password aur Database name ke saath)
+// 1. AAPKA FINAL SAHI MONGODB LINK
+// Dhyan dein: 'mongodb' small letters mein hai aur password/database name sahi hai.
 const mongoURI = "mongodb+srv://pankajptl7089_db_user:P1nk1j@11@cluster0.8qgtvpi.mongodb.net/DMS_Database?retryWrites=true&w=majority";
 
 // Mongoose settings
@@ -14,17 +15,18 @@ mongoose.connect(mongoURI)
     .then(() => console.log("✅ MongoDB (DMS_Database) Connected Successfully!"))
     .catch(err => console.log("❌ MongoDB Connection Error:", err));
 
-// 2. Schema (Aapke Atlas screenshot ke fields ke hisaab se)
+// 2. Schema (Aapke Atlas 'keys' collection ke hisaab se)
 const KeySchema = new mongoose.Schema({
-    keyCode: String,   // Aapne 'keyCode' naam rakha hai
+    keyCode: String,
     deviceId: { type: String, default: null },
     isUsed: { type: Boolean, default: false },
     assignedTo: String
-}, { collection: 'keys' }); // Aapka collection name 'keys' hai
+}, { collection: 'keys' });
 
 const Key = mongoose.model('Key', KeySchema);
 
 app.use(cors()); 
+app.use(express.json());
 
 // 3. Verify Route
 app.get('/verify-token', async (req, res) => {
@@ -32,14 +34,13 @@ app.get('/verify-token', async (req, res) => {
     console.log(`Checking: ${token} for Device: ${deviceId}`);
 
     try {
-        // Database mein keyCode check karna
         const foundKey = await Key.findOne({ keyCode: token });
 
         if (!foundKey) {
             return res.status(401).send("Invalid Token");
         }
 
-        // Agar deviceId null hai, toh lock karo
+        // Agar deviceId null hai, toh naya device lock karo
         if (!foundKey.deviceId || foundKey.deviceId === "" || foundKey.deviceId === "null") {
             foundKey.deviceId = deviceId;
             foundKey.isUsed = true;
@@ -62,3 +63,4 @@ app.get('/verify-token', async (req, res) => {
 });
 
 app.listen(port, () => console.log(`🚀 Server is live on port ${port}`));
+
