@@ -6,7 +6,7 @@ const port = process.env.PORT || 10000;
 
 // 1. AAPKA FINAL SAHI MONGODB LINK
 // Dhyan dein: 'mongodb' small letters mein hai aur password/database name sahi hai.
-const mongoURI = "mongodb+srv://pankajptl7089_db_user:P1nk1j@11@cluster0.8qgtvpi.mongodb.net/DMS_Database?retryWrites=true&w=majority";
+const mongoURI = "mongodb+srv://pankajptl7089_db_user:P1nk1j%4011@cluster0.8qgtvpi.mongodb.net/DMS_Database?retryWrites=true&w=majority";
 
 // Mongoose settings
 mongoose.set('strictQuery', false);
@@ -63,4 +63,5 @@ app.get('/verify-token', async (req, res) => {
 });
 
 app.listen(port, () => console.log(`🚀 Server is live on port ${port}`));
+
 
