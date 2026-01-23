@@ -1,23 +1,28 @@
+const express = require('express');
+const cors = require('cors');
+const app = express();
+
+// Middleware
+app.use(cors()); // Doosre domains se request allow karne ke liye
+app.use(express.json()); // JSON body read karne ke liye
+
+// Aapka verify-token endpoint
 app.get('/verify-token', async (req, res) => {
-    const { token, deviceId } = req.query;
     try {
-        const foundKey = await Key.findOne({ keyCode: token });
-        if (!foundKey) return res.status(401).send("Invalid Token!");
+        // Yahan apna verification logic likhein
+        res.status(200).json({ message: "Token verification endpoint is working!" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
-        const expiryDate = new Date(foundKey.createdAt);
-        expiryDate.setMinutes(expiryDate.getMinutes() + 5); // 5 Minute Expiry
+// Root route (check karne ke liye ki server live hai)
+app.get('/', (req, res) => {
+    res.send("Auth Server is running...");
+});
 
-        if (new Date() > expiryDate) {
-            return res.status(403).send("Expired! Get a new key.");
-        }
-
-        // Device match check
-        if (!foundKey.deviceId || foundKey.deviceId === deviceId) {
-            foundKey.deviceId = deviceId;
-            await foundKey.save();
-            return res.status(200).send("Success");
-        } else {
-            return res.status(403).send("Used on another device!");
-        }
-    } catch (err) { res.status(500).send("Server Error"); }
+// Port configuration (Render ke liye process.env.PORT zaroori hai)
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
