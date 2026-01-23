@@ -1,37 +1,23 @@
 app.get('/verify-token', async (req, res) => {
     const { token, deviceId } = req.query;
-
     try {
         const foundKey = await Key.findOne({ keyCode: token });
-        if (!foundKey) return res.status(401).send("Invalid Token! Please check.");
+        if (!foundKey) return res.status(401).send("Invalid Token!");
 
-        // --- 5 Minute Testing Logic ---
-        const today = new Date();
         const expiryDate = new Date(foundKey.createdAt);
-        
-        // 1 ki jagah 5 minute add karein
-        expiryDate.setMinutes(expiryDate.getMinutes() + 5); 
+        expiryDate.setMinutes(expiryDate.getMinutes() + 5); // 5 Minute Expiry
 
-        if (today > expiryDate) {
-            return res.status(403).send("Token Expired! 5-minute limit over.");
+        if (new Date() > expiryDate) {
+            return res.status(403).send("Expired! Get a new key.");
         }
 
-        // --- Device Binding Logic ---
-        if (!foundKey.deviceId || foundKey.deviceId === "" || foundKey.deviceId === "null") {
+        // Device match check
+        if (!foundKey.deviceId || foundKey.deviceId === deviceId) {
             foundKey.deviceId = deviceId;
-            foundKey.isUsed = true;
             await foundKey.save();
             return res.status(200).send("Success");
-        }
-
-        if (foundKey.deviceId === deviceId) {
-            return res.status(200).send("Success");
         } else {
-            // Iska popup bhi app mein "Used on another device!" dikhayega
             return res.status(403).send("Used on another device!");
         }
-
-    } catch (err) {
-        res.status(500).send("Server Error");
-    }
+    } catch (err) { res.status(500).send("Server Error"); }
 });
