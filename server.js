@@ -1,28 +1,23 @@
-const express = require('express');
-const cors = require('cors');
-const app = express();
-
-// Middleware
-app.use(cors()); // Doosre domains se request allow karne ke liye
-app.use(express.json()); // JSON body read karne ke liye
-
-// Aapka verify-token endpoint
 app.get('/verify-token', async (req, res) => {
-    try {
-        // Yahan apna verification logic likhein
-        res.status(200).json({ message: "Token verification endpoint is working!" });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+    const { token, deviceId } = req.query;
+
+    // Yahan aap apne database (MongoDB) se user dhundenge
+    // Maan lijiye 'user' object mil gaya
+    const user = await User.findOne({ token: token });
+
+    if (!user) {
+        return res.status(401).send("Invalid"); // Token galat hai
     }
-});
 
-// Root route (check karne ke liye ki server live hai)
-app.get('/', (req, res) => {
-    res.send("Auth Server is running...");
-});
+    // Expiry Check (Maan lijiye user.expiry ek date hai)
+    const currentTime = new Date();
+    if (currentTime > user.expiry) {
+        return res.status(403).send("Expired"); // Token expire ho gaya
+    }
 
-// Port configuration (Render ke liye process.env.PORT zaroori hai)
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    if (user.deviceId && user.deviceId !== deviceId) {
+        return res.status(403).send("Device Mismatch");
+    }
+
+    res.status(200).send("OK"); // Sab sahi hai
 });
