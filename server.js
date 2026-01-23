@@ -1,23 +1,23 @@
-app.get('/verify-token', async (req, res) => {
-    const { token, deviceId } = req.query;
+// 1 Ghante wala Token banane ke liye Admin Route
+app.post('/generate', async (req, res) => {
+    const { token } = req.body; // Sirf token ka naam bhejein
+    
+    const expiry = new Date();
+    // 1 Ghante (60 minutes) ka time set karne ke liye
+    expiry.setHours(expiry.getHours() + 1); 
 
-    // Yahan aap apne database (MongoDB) se user dhundenge
-    // Maan lijiye 'user' object mil gaya
-    const user = await User.findOne({ token: token });
-
-    if (!user) {
-        return res.status(401).send("Invalid"); // Token galat hai
+    try {
+        const newToken = new Token({ 
+            token: token, 
+            expiryDate: expiry,
+            isActive: true 
+        });
+        await newToken.save();
+        res.status(200).json({ 
+            message: "Token Created for 1 Hour!", 
+            expiresAt: expiry.toLocaleString() 
+        });
+    } catch (err) {
+        res.status(500).json({ error: "Token already exists or DB Error" });
     }
-
-    // Expiry Check (Maan lijiye user.expiry ek date hai)
-    const currentTime = new Date();
-    if (currentTime > user.expiry) {
-        return res.status(403).send("Expired"); // Token expire ho gaya
-    }
-
-    if (user.deviceId && user.deviceId !== deviceId) {
-        return res.status(403).send("Device Mismatch");
-    }
-
-    res.status(200).send("OK"); // Sab sahi hai
 });
