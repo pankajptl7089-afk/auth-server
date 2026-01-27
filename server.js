@@ -13,57 +13,56 @@ mongoose.connect(dbURI)
     .then(() => console.log("✅ MongoDB Connected Successfully"))
     .catch(err => console.log("❌ DB Connection Error:", err));
 
-// 2. Data Schema & Model
+// 2. Schema Fix: Screenshot ke mutabik fields set ki hain
 const KeySchema = new mongoose.Schema({
-    keyCode: { type: String, required: true, unique: true },
+    token: { type: String, required: true, unique: true }, // 'keyCode' ko 'token' kiya
     deviceId: { type: String, default: "" },
     isUsed: { type: Boolean, default: false },
-    createdAt: { type: Date, default: Date.now }
+    expiryDate: { type: Date } // Expiry date field
 });
 
 const Key = mongoose.model('Key', KeySchema, 'keys');
 
-// 3. Verify Token Endpoint (1 Hour Testing Version)
+// 3. Verify Token Endpoint (30 Days Version)
 app.get('/verify-token', async (req, res) => {
     const { token, deviceId } = req.query;
 
     try {
-        const keyData = await Key.findOne({ keyCode: token });
+        // Database mein 'token' field se search karein
+        const keyData = await Key.findOne({ token: token });
 
         if (!keyData) {
             return res.status(404).send("Invalid Token");
         }
 
         const now = new Date();
-        const createdTime = new Date(keyData.createdAt);
-        
-        // --- TESTING LOGIC: 1 Hour (1 * 60 * 60 * 1000 ms) ---
-        const expiryTimeInMs = 1 * 60 * 60 * 1000; 
-        const diffInMs = now - createdTime;
 
-        // अगर टोकन इस्तेमाल हो चुका है और 1 घंटा बीत गया है
-        if (keyData.isUsed && diffInMs > expiryTimeInMs) {
-            // ऑटोमैटिक रीसेट (टोकन को अमान्य कर देना)
-            keyData.isUsed = false;
-            keyData.deviceId = "";
-            await keyData.save();
-            return res.status(403).send("Token Expired (1 Hour Over)");
+        // --- Expiry Logic Check ---
+        if (keyData.expiryDate && now > new Date(keyData.expiryDate)) {
+            return res.status(403).send("Token Expired!");
         }
 
-        // --- Activation Logic ---
-        if (!keyData.isUsed) {
+        // --- Activation Logic (Pehli Baar Use) ---
+        if (!keyData.isUsed || keyData.deviceId === "" || keyData.deviceId === "null") {
             keyData.isUsed = true;
             keyData.deviceId = deviceId;
-            keyData.createdAt = new Date(); // एक्टिवेशन के समय से 1 घंटा शुरू
+            
+            // Agar pehle se expiry set nahi hai, toh aaj se 30 din set karein
+            if (!keyData.expiryDate) {
+                const thirtyDays = new Date();
+                thirtyDays.setDate(thirtyDays.getDate() + 30);
+                keyData.expiryDate = thirtyDays;
+            }
+
             await keyData.save();
-            return res.status(200).send("Activated for 1 Hour");
+            return res.status(200).send("Activated Successfully");
         }
 
         // --- Re-Login / Device Lock Logic ---
         if (keyData.deviceId === deviceId) {
             return res.status(200).send("Success");
         } else {
-            return res.status(403).send("This token is locked to another device!");
+            return res.status(403).send("Locked to another device!");
         }
 
     } catch (error) {
@@ -73,7 +72,7 @@ app.get('/verify-token', async (req, res) => {
 });
 
 app.get('/', (req, res) => {
-    res.send("Auth Server is live and testing with 1 Hour expiry!");
+    res.send("Auth Server Live: 30 Days Expiry Logic Active!");
 });
 
 const PORT = process.env.PORT || 10000;
