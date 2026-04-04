@@ -6,7 +6,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- AAPKA DATABASE CONNECTION (Already set) ---
+// --- AAPKA DATABASE CONNECTION ---
 const dbURI = "mongodb+srv://pankajptl7089_db_user:P1nk1j%4011@cluster0.8qgtvpi.mongodb.net/DMS_Database?retryWrites=true&w=majority";
 
 mongoose.connect(dbURI)
@@ -23,7 +23,7 @@ const KeySchema = new mongoose.Schema({
 
 const Key = mongoose.model('Key', KeySchema, 'keys');
 
-// --- VERIFY TOKEN ENDPOINT (Updated Logic) ---
+// --- VERIFY TOKEN ENDPOINT ---
 app.get('/verify-token', async (req, res) => {
     const { token, deviceId } = req.query;
 
@@ -35,7 +35,6 @@ app.get('/verify-token', async (req, res) => {
         // 1. Database mein token dhoondhein
         const keyData = await Key.findOne({ token: token });
 
-        // AGAR AAP DATABASE SE TOKEN DELETE KARENGE TO USER BLOCK HO JAYEGA
         if (!keyData) {
             console.log(`Access Denied: Token ${token} not found.`);
             return res.status(404).send("Invalid Token");
@@ -43,7 +42,7 @@ app.get('/verify-token', async (req, res) => {
 
         const now = new Date();
 
-        // 2. Expiry Check (Check har baar hoga app khulne par)
+        // 2. Expiry Check
         if (keyData.expiryDate && now > new Date(keyData.expiryDate)) {
             return res.status(403).send("Token Expired!");
         }
@@ -62,11 +61,10 @@ app.get('/verify-token', async (req, res) => {
             return res.status(200).send("Activated Successfully");
         }
 
-        // 4. Device Lock Check (Har baar login ke waqt)
+        // 4. Device Lock Check
         if (keyData.deviceId === deviceId) {
             return res.status(200).send("Success");
         } else {
-            // Agar token kisi aur device par hai
             return res.status(403).send("Locked to another device!");
         }
 
@@ -80,7 +78,13 @@ app.get('/', (req, res) => {
     res.send("Auth Server is Live with 30-Day Validation!");
 });
 
+// --- SERVER START LOGIC (Render & Vercel Compatibility) ---
 const PORT = process.env.PORT || 10000;
+
+// Render/Local ke liye:
 app.listen(PORT, () => {
     console.log(`🚀 Server is running on port ${PORT}`);
 });
+
+// Vercel ke liye:
+module.exports = app;
