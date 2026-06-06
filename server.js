@@ -13,7 +13,7 @@ mongoose.connect(dbURI)
     .then(() => console.log("✅ MongoDB Connected Successfully"))
     .catch(err => console.log("❌ DB Connection Error:", err.message));
 
-// --- 1. KEY SCHEMA ---
+// --- SCHEMAS ---
 const KeySchema = new mongoose.Schema({
     token: { type: String, required: true, unique: true },
     deviceId: { type: String, default: "" },
@@ -22,69 +22,80 @@ const KeySchema = new mongoose.Schema({
 });
 const Key = mongoose.model('Key', KeySchema, 'keys');
 
-// --- 2. NOTICE SCHEMA ---
 const NoticeSchema = new mongoose.Schema({
     isBlock: { type: Boolean, default: false },
-    noticeMsg: { type: String, default: "Your subscription plan end please renew plan" }
+    noticeMsg: { type: String, default: "Your subscription plan end please renew plan" },
+    showWarning: { type: Boolean, default: true } // Yahan se aap warning ON/OFF karenge
 });
 const Notice = mongoose.model('Notice', NoticeSchema, 'app_notice');
 
-// --- 3. CHECK APP STATUS (Global Control) ---
+// --- 1. CHECK APP STATUS ---
 app.get('/check-status', async (req, res) => {
     try {
         let statusData = await Notice.findOne();
-        if (!statusData) return res.json({ isBlock: false, noticeMsg: "" });
+        if (!statusData) return res.json({ isBlock: false, noticeMsg: "", showWarning: true });
         res.json(statusData);
     } catch (error) {
-        res.status(500).send("Database Error: " + error.message);
+        res.status(500).json({ error: "Database Error" });
     }
 });
 
-// --- 4. VERIFY TOKEN (Single User Control) ---
+// --- 2. VERIFY TOKEN (Targeted Warning Logic) ---
 app.get('/verify-token', async (req, res) => {
     const { token, deviceId } = req.query;
-    if (!token || !deviceId) return res.status(400).send("Parameters missing!");
+    if (!token || !deviceId) return res.status(400).json({ status: "Error", message: "Parameters missing!" });
 
     try {
         const keyData = await Key.findOne({ token: token });
-        
-        // Agar token database mein nahi hai
-        if (!keyData) return res.status(404).send("Invalid Token");
+        const noticeData = await Notice.findOne(); 
+
+        if (!keyData) return res.status(404).json({ status: "Error", message: "Invalid Token" });
 
         const now = new Date();
         
-        // Agar date piche ki hai (Expired)
+        // 1. Expiry Check
         if (keyData.expiryDate && now > new Date(keyData.expiryDate)) {
-            return res.status(403).send("Your subscription plan end please renew plan");
+            return res.status(403).json({ status: "Expired", message: "Your subscription plan end please renew plan" });
         }
 
-        // Naya activation logic
+        // 2. Targeted Warning Logic (1 din bacha hai + Global Switch check)
+        let warningMsg = null;
+        const oneDayInMs = 24 * 60 * 60 * 1000;
+        const timeLeft = new Date(keyData.expiryDate) - now;
+
+        // Sirf tabhi warning jayegi agar:
+        // A) Database mein 'showWarning' true ho
+        // B) Expiry mein 1 din ya usse kam bacha ho
+        if (noticeData && noticeData.showWarning === true && timeLeft <= oneDayInMs && timeLeft > 0) {
+            warningMsg = "Savdhan! Aapka subscription kal khatam ho jayega. Please renew karein.";
+        }
+
+        // 3. New Activation
         if (!keyData.isUsed || keyData.deviceId === "" || keyData.deviceId === "null") {
             keyData.isUsed = true;
             keyData.deviceId = deviceId;
-            const thirtyDays = new Date();
-            thirtyDays.setDate(thirtyDays.getDate() + 30);
-            keyData.expiryDate = thirtyDays;
+            keyData.expiryDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); 
             await keyData.save();
-            return res.status(200).send("Activated Successfully");
+            return res.status(200).json({ status: "Success", message: "Activated Successfully" });
         }
 
-        // Device lock check
+        // 4. Device Lock Check
         if (keyData.deviceId === deviceId) {
-            return res.status(200).send("Success");
+            return res.status(200).json({ 
+                status: "Success", 
+                message: warningMsg || "Success" 
+            });
         } else {
-            return res.status(403).send("Locked to another device!");
+            return res.status(403).json({ status: "Error", message: "Locked to another device!" });
         }
     } catch (error) {
-        res.status(500).send("Server Error: " + error.message);
+        res.status(500).json({ status: "Error", message: "Server Error: " + error.message });
     }
 });
 
 app.get('/', (req, res) => {
-    res.send("Auth Server is Live and Connected!");
+    res.send("Auth Server is Live!");
 });
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
-
-module.exports = app;
